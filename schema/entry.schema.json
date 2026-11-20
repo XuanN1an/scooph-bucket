@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "scooph bucket entry",
+  "type": "object",
+  "required": ["schema", "package", "name", "versionCode", "versionName", "apk"],
+  "properties": {
+    "schema": { "const": 1 },
+    "package": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$"
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "versionCode": { "type": "integer", "minimum": 1 },
+    "versionName": { "type": "string" },
+    "apk": {
+      "type": "object",
+      "required": ["url", "size", "sha256"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https?://" },
+        "size": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+      },
+      "additionalProperties": true
+    },
+    "source": { "type": "string" },
+    "minSdk": { "type": "integer", "minimum": 1 },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": true
+}

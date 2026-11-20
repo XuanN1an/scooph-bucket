@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "package": "com.example.app",
+  "name": "示例应用",
+  "versionCode": 100,
+  "versionName": "1.0.0",
+  "apk": {
+    "url": "https://example.org/app-100.apk",
+    "size": 1234567,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "source": "https://github.com/example/app",
+  "minSdk": 26,
+  "notes": "复制到 apps/<package>.json 后替换全部字段；sha256 必须是真实值"
+}
