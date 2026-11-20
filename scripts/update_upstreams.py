@@ -3,19 +3,22 @@
 
 规则：
 1. 遍历 apps/*.json，从 `apk.url` 或 `source` 推断 GitHub 仓库；
-2. 不依赖任何中央配置——只要条目在 apps/ 里就会被尝试；
+2. 不依赖中央配置——只要条目在 apps/ 里就会被尝试；
 3. 取最近的、非 draft / 非 prerelease 且带 APK 资产的 Release；
-4. 资产名匹配：`upstream.asset_re` > 当前资产名归一化后相等 > Release 里只有一个 APK；
+4. 资产名匹配：`upstream.asset_re` > 当前资产名归化后相等 > Release 里只有一个 APK；
 5. 下载后重新算 size/sha256，用 aapt2/androguard 读 versionCode；
 6. 只有 versionCode 变大才写回；包名对不上直接跳过，不写错误条目；
-7. 非 GitHub 上游（例如官网直链）打印「跳过」并继续，不算失败。
+7. 非 GitHub 上游交给 PAGE_TRACKERS 抓下载页；仍无来源则打印「跳过」。
 
 `upstream` 是可选覆盖字段（文件格式允许未知字段）：
 
     "upstream": {"repo": "owner/repo", "asset_re": "Kazumi_android_.*\\.apk$"}
 
-`SEEDS` 只用于「条目还不存在」的新应用引导：种子里不写包名，脚本从 APK 里读，
-写进 apps/<package>.json；之后每次都由上面的通用流程接管。
+`SEEDS` 只用于「条目还不存在」的新应用引导：不写包名，从 APK 里读出来后
+创建 apps/<package>.json；之后由通用流程接管。
+
+临时 APK 直接放仓库根目录（.upstream-*.apk），不新建目录——部分沙箱环境
+不允许在新建目录里写文件。
 
 用法：
     python scripts/update_upstreams.py            # 更新所有
@@ -33,7 +36,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -50,6 +52,17 @@ SEEDS: list[dict] = [
         "name": "EhViewer",
         "source": "https://github.com/xiaojieonly/Ehviewer_CN_SXJ",
         "notes": "EhViewer（Ehviewer_CN_SXJ）",
+    },
+]
+
+# 非 GitHub 上游：抓下载页里的 APK 直链。
+PAGE_TRACKERS: list[dict] = [
+    {
+        "page": "https://clashapp.org/zh-CN/clash-download/clash-for-android-download.html",
+        "package": "com.github.kr328.clash",
+        "name": "Clash for Android",
+        "source": "https://clashapp.org/zh-CN/clash-download/clash-for-android-download.html",
+        "notes": "Clash for Android（第三方镜像站）",
     },
 ]
 
@@ -138,6 +151,18 @@ def normalize_asset(name: str) -> str:
     return re.sub(r"[^a-z]+", "", without_version)
 
 
+_RELEASE_CACHE: dict[str, list[dict]] = {}
+
+
+def list_releases(repo: str) -> list[dict]:
+    if repo in _RELEASE_CACHE:
+        return _RELEASE_CACHE[repo]
+    releases = api_get(f"{API}/repos/{repo}/releases?per_page=20")
+    result = releases if isinstance(releases, list) else []
+    _RELEASE_CACHE[repo] = result
+    return result
+
+
 def pick_asset(
     releases: list[dict],
     current_name: str,
@@ -164,16 +189,21 @@ def pick_asset(
     return None, None
 
 
-_RELEASE_CACHE: dict[str, list[dict]] = {}
+# ---------------------------------------------------------------- 页面抓取
 
 
-def list_releases(repo: str) -> list[dict]:
-    if repo in _RELEASE_CACHE:
-        return _RELEASE_CACHE[repo]
-    releases = api_get(f"{API}/repos/{repo}/releases?per_page=20")
-    result = releases if isinstance(releases, list) else []
-    _RELEASE_CACHE[repo] = result
-    return result
+def fetch_page(url: str) -> str:
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept": "text/html"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return response.read().decode("utf-8", "replace")
+
+
+def find_apk_url(html: str) -> str | None:
+    matches = re.findall(r"https?://[^\"'\s<>]+?\.apk", html, re.I)
+    return matches[0] if matches else None
 
 
 # ---------------------------------------------------------------- 条目处理
@@ -187,63 +217,100 @@ def load_entry(path: Path) -> dict | None:
         return None
 
 
+def scratch_path(tag: str) -> Path:
+    """临时 APK 放仓库根目录：这里不新建目录，避免沙箱环境下目录内写文件被拒。"""
+    return ROOT / f".upstream-{tag}-{os.getpid()}.apk"
+
+
 def build_entry(
-    data: dict,
+    data: dict | None,
+    package: str,
+    name: str,
     version_code: int,
     version_name: str,
-    asset: dict,
+    url: str,
     size: int,
     sha: str,
+    source: str,
+    notes: str,
+    min_sdk: int | None = None,
 ) -> dict:
-    entry = dict(data)
-    entry["versionCode"] = version_code
-    entry["versionName"] = version_name
-    entry["apk"] = {"url": asset["browser_download_url"], "size": size, "sha256": sha}
-    entry.setdefault("schema", 1)
-    entry.setdefault("package", data["package"])
+    entry = dict(data) if data else {}
+    entry.update(
+        {
+            "schema": 1,
+            "package": package,
+            "name": name,
+            "versionCode": version_code,
+            "versionName": version_name,
+            "apk": {"url": url, "size": size, "sha256": sha},
+            "source": source,
+            "notes": notes,
+        }
+    )
+    if min_sdk is not None:
+        entry["minSdk"] = min_sdk
     return entry
 
 
-def update_entry(path: Path, data: dict, dry_run: bool) -> None:
-    package = data["package"]
-    apk = data.get("apk") or {}
-    repo = (data.get("upstream") or {}).get("repo") or infer_repo(apk.get("url", ""), data.get("source", ""))
-    if not repo:
-        print(f"[{package}] 跳过：不是 GitHub 上游（{data.get('source') or apk.get('url')}）")
-        return
-    asset_re = (data.get("upstream") or {}).get("asset_re")
+def inspect_apk(url: str, expected_package: str, tag: str) -> tuple[Path, int, str, int, str]:
+    """下载并校验 APK，返回 (文件, 大小, 包名, versionCode, versionName)；调用方负责删除文件。"""
+    path = scratch_path(tag)
+    try:
+        size = download(url, path)
+        package, version_code, version_name = apk_meta(path)
+        if expected_package and package != expected_package:
+            raise RuntimeError(f"包名不一致：期望 {expected_package}，实际 {package}")
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    return path, size, package, version_code, version_name
 
-    releases = list_releases(repo)
-    release, asset = pick_asset(releases, Path(apk.get("url", "")).name, asset_re)
-    if not release or not asset:
-        print(f"[{package}] 跳过：{repo} 最近版本里没有匹配的 APK 资产")
-        return
-    # 资产地址没变说明上游还没发新包，直接跳过，省掉一次完整下载。
-    if asset["browser_download_url"] == apk.get("url"):
-        print(f"[{package}] 已是最新：资产地址未变（{asset['name']}）")
+
+# ---------------------------------------------------------------- 三种来源
+
+
+def update_from_page(tracker: dict, dry_run: bool) -> None:
+    package = tracker["package"]
+    path = APPS / f"{package}.json"
+    data = load_entry(path) if path.exists() else None
+
+    url = find_apk_url(fetch_page(tracker["page"]))
+    if not url:
+        raise RuntimeError(f"{tracker['page']} 里没有 .apk 直链（页面结构可能变了）")
+    if data and data.get("apk", {}).get("url") == url:
+        print(f"[{package}] 已是最新：页面直链未变（{Path(url).name}）")
         return
 
-    with tempfile.TemporaryDirectory(prefix="scooph-upstream-") as tmp:
-        file = Path(tmp) / "app.apk"
-        size = download(asset["browser_download_url"], file)
-        actual_package, version_code, version_name = apk_meta(file)
-        if actual_package != package:
-            print(f"[{package}] 跳过：下载到的 APK 实际包名是 {actual_package}")
-            return
-        if version_code <= int(data.get("versionCode", -1)):
+    file, size, _, version_code, version_name = inspect_apk(url, package, "page")
+    try:
+        if data and version_code <= int(data.get("versionCode", -1)):
             print(f"[{package}] 已是最新：{version_name} ({version_code})")
             return
-
         sha = sha256_of(file)
-        updated = build_entry(data, version_code, version_name, asset, size, sha)
+        entry = build_entry(
+            data,
+            package,
+            tracker["name"],
+            version_code,
+            version_name,
+            url,
+            size,
+            sha,
+            tracker["source"],
+            tracker["notes"],
+        )
         print(
-            f"[{package}] {data.get('versionCode')} -> {version_code} ({version_name}) "
-            f"{size} bytes {sha[:12]}… release={release.get('tag_name')} repo={repo}"
+            f"[{package}] {data.get('versionCode') if data else -1} -> {version_code} ({version_name}) "
+            f"{size} bytes {sha[:12]}… page={tracker['page']}"
         )
         if dry_run:
             print(f"[{package}] dry-run，不写文件")
             return
-        path.write_text(json.dumps(updated, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        APPS.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    finally:
+        file.unlink(missing_ok=True)
 
 
 def seed_entry(seed: dict, dry_run: bool) -> None:
@@ -256,41 +323,92 @@ def seed_entry(seed: dict, dry_run: bool) -> None:
     if any(entry.get("source") == seed["source"] for entry in existing):
         return  # 已经引导过了
 
-    releases = list_releases(seed["repo"])
-    release, asset = pick_asset(releases, "app.apk", seed.get("asset_re"))
+    release, asset = pick_asset(list_releases(seed["repo"]), "app.apk", seed.get("asset_re"))
     if not release or not asset:
         print(f"[seed] {seed['repo']} 没有可用的 APK 资产")
         return
 
-    with tempfile.TemporaryDirectory(prefix="scooph-seed-") as tmp:
-        file = Path(tmp) / "app.apk"
-        size = download(asset["browser_download_url"], file)
-        package, version_code, version_name = apk_meta(file)
+    file, size, package, version_code, version_name = inspect_apk(
+        asset["browser_download_url"], "", "seed"
+    )
+    try:
         target = APPS / f"{package}.json"
         if target.exists():
             return
         sha = sha256_of(file)
-        data = {
-            "schema": 1,
-            "package": package,
-            "name": seed["name"],
-            "versionCode": version_code,
-            "versionName": version_name,
-            "apk": {"url": asset["browser_download_url"], "size": size, "sha256": sha},
-            "source": seed["source"],
-            "notes": seed["notes"],
-        }
-        if seed.get("min_sdk") is not None:
-            data["minSdk"] = seed["min_sdk"]
+        entry = build_entry(
+            None,
+            package,
+            seed["name"],
+            version_code,
+            version_name,
+            asset["browser_download_url"],
+            size,
+            sha,
+            seed["source"],
+            seed["notes"],
+            seed.get("min_sdk"),
+        )
         print(
             f"[seed] {package} {version_code} ({version_name}) {size} bytes "
             f"release={release.get('tag_name')} -> {target.name}"
         )
         if dry_run:
-            print(f"[seed] dry-run，不写文件")
+            print("[seed] dry-run，不写文件")
             return
         APPS.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        target.write_text(json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    finally:
+        file.unlink(missing_ok=True)
+
+
+def update_entry(path: Path, data: dict, dry_run: bool) -> None:
+    package = data["package"]
+    apk = data.get("apk") or {}
+    upstream = data.get("upstream") or {}
+    repo = upstream.get("repo") or infer_repo(apk.get("url", ""), data.get("source", ""))
+    if not repo:
+        print(f"[{package}] 跳过：不是 GitHub 上游（{data.get('source') or apk.get('url')}）")
+        return
+    asset_re = upstream.get("asset_re")
+
+    release, asset = pick_asset(list_releases(repo), Path(apk.get("url", "")).name, asset_re)
+    if not release or not asset:
+        print(f"[{package}] 跳过：{repo} 最近版本里没有匹配的 APK 资产")
+        return
+    # 资产地址没变说明上游还没发新包，省掉一次完整下载。
+    if asset["browser_download_url"] == apk.get("url"):
+        print(f"[{package}] 已是最新：资产地址未变（{asset['name']}）")
+        return
+
+    file, size, _, version_code, version_name = inspect_apk(asset["browser_download_url"], package, "entry")
+    try:
+        if version_code <= int(data.get("versionCode", -1)):
+            print(f"[{package}] 已是最新：{version_name} ({version_code})")
+            return
+        sha = sha256_of(file)
+        entry = build_entry(
+            data,
+            package,
+            data.get("name", package),
+            version_code,
+            version_name,
+            asset["browser_download_url"],
+            size,
+            sha,
+            data.get("source", ""),
+            data.get("notes", ""),
+        )
+        print(
+            f"[{package}] {data.get('versionCode')} -> {version_code} ({version_name}) "
+            f"{size} bytes {sha[:12]}… release={release.get('tag_name')} repo={repo}"
+        )
+        if dry_run:
+            print(f"[{package}] dry-run，不写文件")
+            return
+        path.write_text(json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    finally:
+        file.unlink(missing_ok=True)
 
 
 def main() -> int:
@@ -301,6 +419,15 @@ def main() -> int:
     args = parser.parse_args()
 
     failures = 0
+    for tracker in PAGE_TRACKERS:
+        if args.only and tracker["package"] != args.only:
+            continue
+        try:
+            update_from_page(tracker, args.dry_run)
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            print(f"[page] {tracker['page']} 失败：{exc}", file=sys.stderr)
+
     if not args.no_seeds:
         for seed in SEEDS:
             try:

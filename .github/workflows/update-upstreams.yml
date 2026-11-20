@@ -28,7 +28,19 @@ jobs:
       - name: Update entries from upstream releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/update_upstreams.py
+        run: |
+          set -o pipefail
+          python scripts/update_upstreams.py 2>&1 | tee /tmp/upstream.log
+
+      - name: Publish summary
+        if: always()
+        run: |
+          {
+            echo "### 上游检查结果"
+            echo '```'
+            cat /tmp/upstream.log 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit and push if changed
         run: |

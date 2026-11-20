@@ -4,3 +4,7 @@ __pycache__/
 
 # 发布产物（走 GitHub Releases，不进 git）
 dist/
+
+# 自动跟踪脚本的临时下载目录
+.upstream-*/
+.upstream-*.apk

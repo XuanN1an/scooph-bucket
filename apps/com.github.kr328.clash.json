@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "package": "com.github.kr328.clash",
+  "name": "Clash for Android",
+  "versionCode": 205012,
+  "versionName": "2.5.12.premium",
+  "apk": {
+    "url": "https://clashapp.org/zh-CN/clash-download/Clash%20for%20Android_2.5.12.apk",
+    "size": 35958994,
+    "sha256": "9a5bb0d7b668e345aa8f5845e13314e718f93a4b907b5b27ccea899b25b95b02"
+  },
+  "source": "https://clashapp.org/zh-CN/clash-download/clash-for-android-download.html",
+  "notes": "Clash for Android（第三方镜像站）"
+}

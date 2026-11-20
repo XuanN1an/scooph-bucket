@@ -108,6 +108,15 @@ python scripts/update_upstreams.py --only com.predidit.kazumi
 
 本地跑需要 `aapt2` 或 `pip install androguard`；CI 里用 androguard。
 
+### 非 GitHub 上游（页面抓取）
+
+`PAGE_TRACKERS` 里登记下载页地址和期望包名：脚本抓页面里的第一个 `.apk` 直链，
+下载后校验包名、版本号，再写条目。页面结构变化会让任务变红，而不是静默写错。
+
+当前登记了 Clash for Android（`clashapp.org`）。注意这是第三方镜像页，页面提供的是
+`2.5.12.premium` 构建，**签名与官方是否一致未核实**；介意的话不要安装，或换用官方
+替代品。
+
 ## License
 
 本仓库采用 GNU General Public License v3.0（见 `LICENSE`）。
