@@ -2,14 +2,14 @@
   "schema": 1,
   "package": "dev.scooph.app",
   "name": "Scooph",
-  "versionCode": 4,
-  "versionName": "0.1.3",
+  "versionCode": 6,
+  "versionName": "0.1.5",
   "apk": {
-    "url": "https://github.com/XuanN1an/scooph/releases/download/v0.1.3/scooph-0.1.3.apk",
+    "url": "https://github.com/XuanN1an/scooph/releases/download/v0.1.5/scooph-0.1.5.apk",
     "size": 51474059,
-    "sha256": "4a4be0a61a8fb16f063eeed95e2ae5439cd3b6f3f7d05a90a5e5c29a92cfde8f"
+    "sha256": "4d533c293e3175a2fc0c12aea65f32f09823b042c5b45725b5d370c87e3f71e5"
   },
   "source": "https://github.com/XuanN1an/scooph",
   "minSdk": 26,
-  "notes": "Scooph 0.1.3，跳过一版后上游发新版验收用"
+  "notes": "Scooph 0.1.5，验证 OEM 回执兜底后的队列显示"
 }
