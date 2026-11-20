@@ -218,6 +218,10 @@ def update_entry(path: Path, data: dict, dry_run: bool) -> None:
     if not release or not asset:
         print(f"[{package}] 跳过：{repo} 最近版本里没有匹配的 APK 资产")
         return
+    # 资产地址没变说明上游还没发新包，直接跳过，省掉一次完整下载。
+    if asset["browser_download_url"] == apk.get("url"):
+        print(f"[{package}] 已是最新：资产地址未变（{asset['name']}）")
+        return
 
     with tempfile.TemporaryDirectory(prefix="scooph-upstream-") as tmp:
         file = Path(tmp) / "app.apk"
