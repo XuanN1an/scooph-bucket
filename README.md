@@ -72,21 +72,37 @@ make validate-urls   # 额外检查 apk.url 可达（需要网络）
 
 ## 自动跟踪上游
 
-`.github/workflows/update-upstreams.yml` 每 6 小时跑一次，也可以在 Actions 页手动触发：
+`.github/workflows/update-upstreams.yml` 每 6 小时跑一次，也可以在 Actions 页手动触发。
 
-1. 按 `scripts/update_upstreams.py` 里的 `UPSTREAMS` 表找到上游仓库；
-2. 取最新的非 draft / 非 prerelease Release 里匹配命名规则的 APK；
-3. 下载后重新计算 `size` / `sha256`，并用 `aapt2` 或 `androguard` 读 `versionCode` / `versionName`；
-4. 只有 APK 的 `versionCode` 比条目里大才写 `apps/*.json`；
-5. 有变化就用 `scooph-bot` 身份 commit & push，同时触发格式校验。
+**不需要中央配置**：脚本遍历 `apps/*.json`，从 `apk.url` 或 `source` 推断 GitHub 仓库，然后：
 
-新增要跟踪的应用：在 `UPSTREAMS` 里加一项（包名、仓库、资产命名正则、显示名、minSdk、notes）。
+1. 取最近的、非 draft / 非 prerelease 且带 APK 的 Release；
+2. 资产名匹配顺序：`upstream.asset_re` → 当前资产名归一化后相等 → 该 Release 只有一个 APK；
+3. 下载后重算 `size` / `sha256`，用 `aapt2` 或 `androguard` 读 `versionCode`；
+4. 只有 `versionCode` 变大才写回条目；包名对不上直接跳过，不写错误数据；
+5. 非 GitHub 上游（官网直链等）打印「跳过」并继续，不算失败。
+
+单个条目失败不影响其它条目，但会让任务变红（`exit 1`）。
+
+### 给推断不准的条目加覆盖
+
+JSON 里允许未知字段，可加：
+
+```json
+"upstream": {
+  "repo": "owner/repo",
+  "asset_re": "Kazumi_android_.*\\.apk$"
+}
+```
+
+### 新应用引导
+
+`apps/` 里还不存在的应用，放在脚本的 `SEEDS` 里（不用写包名），首次运行会下载 APK、
+从里面读包名并创建 `apps/<package>.json`；之后由通用流程接管。
 
 ```bash
-# 本地预演（不写文件）
-python scripts/update_upstreams.py --dry-run
-
-# 只跑某一个
+python scripts/update_upstreams.py            # 更新所有条目
+python scripts/update_upstreams.py --dry-run  # 预演
 python scripts/update_upstreams.py --only com.predidit.kazumi
 ```
 
