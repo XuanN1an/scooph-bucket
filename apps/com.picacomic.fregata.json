@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "package": "com.picacomic.fregata",
+  "name": "哔咔漫画",
+  "versionCode": 44,
+  "versionName": "2.2.1.3.3.4",
+  "apk": {
+    "url": "https://www.picacomic.com/apps/picacomic-v2.2.1.3.3.4.apk",
+    "size": 13489071,
+    "sha256": "64e86716d6ab49271201dfe9c9fe9a8d7be8ac97a8c641eb712f987c5945d26b"
+  },
+  "source": "https://www.picacomic.com",
+  "minSdk": 17,
+  "notes": "哔咔漫画 2.2.1.3.3.4（官网下载）"
+}
