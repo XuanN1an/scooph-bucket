@@ -72,4 +72,5 @@ make validate-urls   # 额外检查 apk.url 可达（需要网络）
 
 ## License
 
-条目内容归各自应用作者；本仓库的格式说明与脚本使用 MIT。
+本仓库采用 GNU General Public License v3.0（见 `LICENSE`）。
+条目内容归各自应用作者。
