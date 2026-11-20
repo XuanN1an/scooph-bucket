@@ -54,6 +54,15 @@ UPSTREAMS: list[dict] = [
         "min_sdk": 23,
         "notes": "JMComic（第三方 APK 仓库）",
     },
+    {
+        # 这个仓库的 APK 资产名在 EhViewer-<ver>.apk 和 <ver>.apk 之间变过，
+        # 且发布页只有单个安装包，所以直接匹配任意 .apk，由包名检查兜底。
+        "repo": "xiaojieonly/Ehviewer_CN_SXJ",
+        "asset_re": r"(?i)\.apk$",
+        "name": "EhViewer",
+        "source": "https://github.com/xiaojieonly/Ehviewer_CN_SXJ",
+        "notes": "EhViewer（Ehviewer_CN_SXJ）",
+    },
 ]
 
 
@@ -139,23 +148,31 @@ def existing_version(path: Path) -> tuple[dict | None, int]:
     return data, int(data.get("versionCode", -1))
 
 
-def build_entry(config: dict, version_code: int, version_name: str, asset: dict, size: int, sha: str) -> dict:
-    return {
+def build_entry(
+    config: dict,
+    package: str,
+    version_code: int,
+    version_name: str,
+    asset: dict,
+    size: int,
+    sha: str,
+) -> dict:
+    entry = {
         "schema": 1,
-        "package": config["package"],
+        "package": package,
         "name": config["name"],
         "versionCode": version_code,
         "versionName": version_name,
         "apk": {"url": asset["browser_download_url"], "size": size, "sha256": sha},
         "source": config["source"],
-        "minSdk": config["min_sdk"],
         "notes": config["notes"],
     }
+    if config.get("min_sdk") is not None:
+        entry["minSdk"] = config["min_sdk"]
+    return entry
 
 
 def update_one(config: dict, dry_run: bool) -> None:
-    package = config["package"]
-    entry_path = APPS / f"{package}.json"
     release, asset = pick_asset(config["repo"], config["asset_re"])
     if not release or not asset:
         raise RuntimeError(f"{config['repo']} 没有匹配 {config['asset_re']} 的非预发布资产")
@@ -164,22 +181,27 @@ def update_one(config: dict, dry_run: bool) -> None:
         apk = Path(tmp) / "app.apk"
         size = download(asset["browser_download_url"], apk)
         actual_package, version_code, version_name = apk_meta(apk)
-        if actual_package != package:
-            raise RuntimeError(f"包名不一致：期望 {package}，APK 实际是 {actual_package}")
 
+        expected = config.get("package")
+        if expected and actual_package != expected:
+            raise RuntimeError(f"包名不一致：期望 {expected}，APK 实际是 {actual_package}")
+
+        # 没写死包名的条目（例如上游换过 fork）以 APK 里的包名为准；
+        # 文件名必须等于 package，这是 bucket 的硬规则。
+        entry_path = APPS / f"{actual_package}.json"
         _, old_code = existing_version(entry_path)
         if old_code >= version_code:
-            print(f"[{package}] 已是最新：{version_name} ({version_code})")
+            print(f"[{actual_package}] 已是最新：{version_name} ({version_code})")
             return
 
         sha = sha256_of(apk)
-        entry = build_entry(config, version_code, version_name, asset, size, sha)
+        entry = build_entry(config, actual_package, version_code, version_name, asset, size, sha)
         print(
-            f"[{package}] {old_code} -> {version_code} ({version_name}) "
+            f"[{actual_package}] {old_code} -> {version_code} ({version_name}) "
             f"{size} bytes {sha[:12]}… release={release.get('tag_name')}"
         )
         if dry_run:
-            print(f"[{package}] dry-run，不写文件")
+            print(f"[{actual_package}] dry-run，不写文件")
             return
         APPS.mkdir(parents=True, exist_ok=True)
         entry_path.write_text(json.dumps(entry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
