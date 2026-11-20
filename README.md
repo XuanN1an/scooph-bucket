@@ -70,6 +70,28 @@ make validate-urls   # 额外检查 apk.url 可达（需要网络）
 3. 复制 `apps/_template.json` 为 `apps/<packageName>.json` 并填写
 4. `make validate` 通过后提交 PR
 
+## 自动跟踪上游
+
+`.github/workflows/update-upstreams.yml` 每 6 小时跑一次，也可以在 Actions 页手动触发：
+
+1. 按 `scripts/update_upstreams.py` 里的 `UPSTREAMS` 表找到上游仓库；
+2. 取最新的非 draft / 非 prerelease Release 里匹配命名规则的 APK；
+3. 下载后重新计算 `size` / `sha256`，并用 `aapt2` 或 `androguard` 读 `versionCode` / `versionName`；
+4. 只有 APK 的 `versionCode` 比条目里大才写 `apps/*.json`；
+5. 有变化就用 `scooph-bot` 身份 commit & push，同时触发格式校验。
+
+新增要跟踪的应用：在 `UPSTREAMS` 里加一项（包名、仓库、资产命名正则、显示名、minSdk、notes）。
+
+```bash
+# 本地预演（不写文件）
+python scripts/update_upstreams.py --dry-run
+
+# 只跑某一个
+python scripts/update_upstreams.py --only com.predidit.kazumi
+```
+
+本地跑需要 `aapt2` 或 `pip install androguard`；CI 里用 androguard。
+
 ## License
 
 本仓库采用 GNU General Public License v3.0（见 `LICENSE`）。
