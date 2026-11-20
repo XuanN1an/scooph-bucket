@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "package": "com.a7m3p9xv.t6qk2z8.app",
+  "name": "JMComic",
+  "versionCode": 20114,
+  "versionName": "2.1.14",
+  "apk": {
+    "url": "https://github.com/hect0x7/JMComic-APK/releases/download/2.1.14/2.1.14.apk",
+    "size": 5213789,
+    "sha256": "07303788fae2d027e3c8a4a1d766aacd5f4668f022bbc84a1fdb652ffaab66d3"
+  },
+  "source": "https://github.com/hect0x7/JMComic-APK",
+  "minSdk": 23,
+  "notes": "JMComic 2.1.14（第三方 APK 仓库）"
+}
