@@ -2,14 +2,14 @@
   "schema": 1,
   "package": "dev.scooph.app",
   "name": "Scooph",
-  "versionCode": 2,
-  "versionName": "0.1.1",
+  "versionCode": 3,
+  "versionName": "0.1.2",
   "apk": {
-    "url": "https://github.com/XuanN1an/scooph/releases/download/v0.1.1/scooph-0.1.1.apk",
-    "size": 51472715,
-    "sha256": "a494aef553bba9dd5a97d74a84f45dd9cfece529ea8c5c1ec93a2debb031b11a"
+    "url": "https://github.com/XuanN1an/scooph/releases/download/v0.1.2/scooph-0.1.2.apk",
+    "size": 51474059,
+    "sha256": "dcb644c8a96ce639bc6cdc1ab7c500654fd6c1e33e9931db34c5549d09abe7b7"
   },
   "source": "https://github.com/XuanN1an/scooph",
   "minSdk": 26,
-  "notes": "Scooph 0.1.1，验收用自更新包"
+  "notes": "Scooph 0.1.2，跳过策略验收用"
 }
