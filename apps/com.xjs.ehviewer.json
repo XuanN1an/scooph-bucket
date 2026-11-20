@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "package": "com.xjs.ehviewer",
+  "name": "EhViewer",
+  "versionCode": 111,
+  "versionName": "2.0.2.7",
+  "apk": {
+    "url": "https://github.com/xiaojieonly/Ehviewer_CN_SXJ/releases/download/2.0.2.7/EhViewer-2.0.2.7.apk",
+    "size": 28245951,
+    "sha256": "64d9b504f4170b45357e1a9d4b232452601a0ce85f21821f81da0419b2be2371"
+  },
+  "source": "https://github.com/xiaojieonly/Ehviewer_CN_SXJ",
+  "notes": "EhViewer（Ehviewer_CN_SXJ）"
+}
