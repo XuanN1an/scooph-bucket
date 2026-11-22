@@ -2,12 +2,12 @@
   "schema": 1,
   "package": "com.predidit.kazumi",
   "name": "Kazumi",
-  "versionCode": 214052,
-  "versionName": "2.4.5",
+  "versionCode": 214062,
+  "versionName": "2.4.6",
   "apk": {
-    "url": "https://github.com/Predidit/Kazumi/releases/download/2.4.5/Kazumi_android_2.4.5.apk",
+    "url": "https://github.com/Predidit/Kazumi/releases/download/2.4.6/Kazumi_android_2.4.6.apk",
     "size": 32550990,
-    "sha256": "3568667dc15265eebd184a0821ff2049318ef1b579fb5036746bed07dcefc29c"
+    "sha256": "c6be4371d4b5c07550d4b3c6d3baf571bce2ee123522e4d574c8620de17451f1"
   },
   "source": "https://github.com/Predidit/Kazumi",
   "minSdk": 24,
