@@ -2,12 +2,12 @@
   "schema": 1,
   "package": "com.predidit.kazumi",
   "name": "Kazumi",
-  "versionCode": 214062,
-  "versionName": "2.4.6",
+  "versionCode": 214072,
+  "versionName": "2.4.7",
   "apk": {
-    "url": "https://github.com/Predidit/Kazumi/releases/download/2.4.6/Kazumi_android_2.4.6.apk",
-    "size": 32550990,
-    "sha256": "c6be4371d4b5c07550d4b3c6d3baf571bce2ee123522e4d574c8620de17451f1"
+    "url": "https://github.com/Predidit/Kazumi/releases/download/2.4.7/Kazumi_android_2.4.7.apk",
+    "size": 32559182,
+    "sha256": "2016c78a63b5a19a43f2e2d46fe8b212fdecae297ea0a6d6153dfb4c723b82c8"
   },
   "source": "https://github.com/Predidit/Kazumi",
   "minSdk": 24,
